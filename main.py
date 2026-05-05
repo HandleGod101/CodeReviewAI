@@ -250,8 +250,6 @@ class SwarmController:
 
         """
         Launch all assigned agents in parallel threads.
-        This is "Parallel Processing" from the article — distributed approach
-        where multiple agents work simultaneously on different aspects.
         Each agent is independent and posts to the shared blackboard.
         """
         #create manager
