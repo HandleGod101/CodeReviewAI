@@ -17,9 +17,7 @@ from collections import Counter, defaultdict
 from typing import Optional
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# KNOWN PATTERNS
-# ─────────────────────────────────────────────────────────────────────────────
+# KNOWN 
 
 DANGEROUS_IMPORTS  = {"os", "subprocess", "pickle", "eval", "exec", "shlex", "pty", "ctypes"}
 DB_IMPORTS         = {"sqlite3", "psycopg2", "sqlalchemy", "pymysql", "cx_Oracle", "pymongo"}
@@ -31,9 +29,7 @@ DANGEROUS_CALLS    = {"eval", "exec", "compile", "pickle.loads", "os.system",
 SQL_KEYWORDS       = {"SELECT", "INSERT", "UPDATE", "DELETE", "DROP", "CREATE"}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 1 — Safe parse
-# ─────────────────────────────────────────────────────────────────────────────
+#Safe parse
 
 def safe_parse(code: str) -> Optional[ast.AST]:
     try:
@@ -42,9 +38,7 @@ def safe_parse(code: str) -> Optional[ast.AST]:
         return None
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 2 — Extract structural facts
-# ─────────────────────────────────────────────────────────────────────────────
+# Extract structural facts
 
 def extract_structure(code: str, tree: ast.AST) -> dict:
     lines = code.splitlines()
@@ -159,18 +153,15 @@ def _find_nested_loops(tree: ast.AST) -> list:
     return nested
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 3 — Call graph (the new piece)
-#
-# This solves the edge case from the document:
+#  Call graph (the new thing)
 #
 #   def run():
 #       query = build_query(user_input)   # build_query is the unsafe one
 #
-# Without a call graph, we'd only send run() to the security agent
+# without a call graph, we'd only send run() to the security agent
 # and miss that build_query() is the actual problem.
 #
-# With the call graph, we know run() → build_query(), so we expand
+# with the call graph, we know run() → build_query(), so we expand
 # the chunk to include build_query() too — 1 hop.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -264,9 +255,6 @@ def expand_with_dependencies(
     return relevant_lines
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 4 — Quick flags (deterministic agent pre-selection)
-# ─────────────────────────────────────────────────────────────────────────────
 
 def quick_flags(imports: list, structure: dict) -> dict:
     import_set = set(imports)
@@ -297,9 +285,7 @@ def quick_flags(imports: list, structure: dict) -> dict:
     return flags
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # STEP 5 — Per-agent focused chunks (with dependency expansion)
-# ─────────────────────────────────────────────────────────────────────────────
 
 def extract_chunk_for_agent(
     code: str,
@@ -441,9 +427,8 @@ def _chunk_imports(tree: ast.AST, lines: list) -> str:
     return "\n".join(lines[i] for i in sorted(relevant) if i < len(lines)) if relevant else ""
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # STEP 6 — Orchestrator summary
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 def build_orchestrator_summary(structure: dict, flags: dict, call_graph: dict) -> str:
     """
@@ -504,9 +489,7 @@ def build_orchestrator_summary(structure: dict, flags: dict, call_graph: dict) -
     return "\n".join(out)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # MAIN ENTRY POINT
-# ─────────────────────────────────────────────────────────────────────────────
 
 def preprocess(code: str) -> dict:
     """
