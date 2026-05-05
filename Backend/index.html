@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"> <!--Makes your app responsive on mobile-->
+<title>CodeReview AI</title>
+
+<!--  load the 2 Fonts -->
+<!-- JetBrains Mono for code and Syne for regular text -->
+
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+
+
+<!-- CodeMirror -->
+
+ <!-- actual editor -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<!-- dark theme mode editor -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/one-dark.min.css">
+
+<!-- The main library!!!-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+
+<!--Enables Python code to be written (there are other modes)-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+
+<!-- extra features
+  - auto bracket closing ( -> ()
+  - match brackets
+  - highlight the line your cursor is on
+  - enable comments via #
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>
+
+
+
+
+<!-- App styles -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="glow-orb"></div> <!-- Purely visual background effect -->
+
+<div class="container"> <!-- Main container -->
+  <header>
+    <div class="logo-badge">⚙</div>
+    <div class="header-text">
+      <h1>CodeReview AI</h1>
+      <p>multi-agent · llama-4-scout · groq</p>
+    </div>
+    <div class="status-dot">API LIVE</div>
+  </header>
+
+  <div class="layout"> <!-- Holds the two panels side-by-side -->
+
+    <!-- INPUT PANEL -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Input</span>
+        <div class="panel-header-right">
+          <span class="line-count" id="lineCount">1 line</span>
+          <span class="panel-badge badge-input">Python</span>
+        </div>
+      </div>
+
+      <div id="editorMount"></div>
+
+
+
+      <!-- Run output panel (hidden until first run code button pressed) -->
+      <div class="run-panel" id="runPanel">
+        <div class="run-panel-header">
+          <span class="run-panel-title">$ output</span>
+        </div>
+        <div class="run-output loading" id="runOutput"></div>
+      </div>
+
+
+
+      <div class="presets">
+        <span class="presets-label">Try:</span> <!-- calls loadpreset function and replaces editor content-->
+        <button class="preset-btn" onclick="loadPreset('simple')">simple fn</button>
+        <button class="preset-btn" onclick="loadPreset('security')">eval() risk</button>
+        <button class="preset-btn" onclick="loadPreset('sql')">SQL injection</button>
+        <button class="preset-btn" onclick="loadPreset('logic')">logic bug</button>
+        <button class="preset-btn" onclick="loadPreset('nested')">nested</button>
+        <!-- comment instructions next to submit showing how to run or comment-->
+        <span class="kb-hint"><kbd>⌘</kbd><kbd>↵</kbd> run &nbsp;·&nbsp; <kbd>⌘</kbd><kbd>/</kbd> comment</span>
+      </div>
+
+
+      
+      <div class="btn-row">
+          <button class="run-btn" id="runBtn" onclick="runCode()">
+            ▶ Run Code
+          </button>
+
+          <button class="submit-btn" id="submitBtn" onclick="runReview()">
+            <div class="btn-inner">
+              <div class="spinner" id="spinner"></div>
+              <span id="btnLabel">Run Review</span>
+            </div>
+          </button>
+
+          <button class="search-btn" onclick="search()">
+            🔎 Search
+          </button>
+
+        </div>
+      </div>
+
+
+
+
+
+
+
+    <!--RIGHT SIDE OUTPUT PANEL-->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Report</span>
+      </div>
+
+      <div class="output-body">
+
+        <div class="placeholder-state" id="placeholderState">
+          <div class="placeholder-icon">◈</div>
+          <p>Paste code on the left<br>and click Run Review</p>
+        </div>
+
+        <div class="loading-state" id="loadingState">
+          <div class="loading-agents">
+            <div class="loading-agent" id="agentA">Analyzer</div>
+            <div class="loading-agent" id="agentS">Security</div>
+            <div class="loading-agent" id="agentR">Reviewer</div>
+          </div>
+          <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+          <div class="loading-label" id="loadingLabel">Running agents...</div>
+        </div>
+
+        <div class="error-box" id="errorBox"></div>
+
+        <div class="result" id="resultArea">
+          <!-- <div class="pipeline">
+            <span class="agent-node agent-analyzer">Analyzer</span>
+            <span class="arrow">→</span>
+            <span class="agent-node agent-security">Security</span>
+            <span class="arrow">→</span>
+            <span class="agent-node agent-reviewer">Reviewer</span>
+          </div> -->
+
+
+
+          <div class="section-label">Summary of code</div>
+          <div class="summary-box" id="summaryBox"></div>
+
+          <!-- Per-agent grouped findings -->
+          <div class="section-label">Issues Found</div>
+          <div id="agentFindings"></div>
+
+          <!-- Emergent cross-agent issues -->
+          <div id="emergentSection" style="display:none">
+            <div class="section-label emergent-label">⚡ Emergent Issues</div>
+            <ul class="issue-list" id="emergentList"></ul>
+          </div>
+
+          <div class="section-label">Suggested Improvements</div>
+          <ul class="improvement-list" id="improvementList"></ul>
+
+          <!-- Swarm meta -->
+          <div id="swarmMeta" style="display:none">
+            <div class="swarm-meta-box">
+              <div class="swarm-meta-title">Summary of Issues</div>
+              <div class="swarm-reasoning" id="swarmReasoning"></div>
+              <div class="agent-tags" id="agentTags"></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="stats-bar" id="statsBar" style="display:none">
+        <div class="stat">Issues: <span class="stat-val" id="statIssues">—</span></div>
+        <div class="stat">Fixes: <span class="stat-val" id="statFixes">—</span></div>
+        <div class="stat">Time: <span class="stat-val" id="statTime">—</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- App logic, this is what makes everything interactive -->
+<script src="app.js"></script>
+
+</body>
+</html>
